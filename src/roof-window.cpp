@@ -24,20 +24,20 @@ int Roof_Tile_Window::handle(int event) {
 		Roof_Window::paste_tile_graphics_cb(NULL, rw);
 		return 1;
 	}
-	if (rw->_debounce) {
-		if (Fl::event() == FL_KEYUP) {
-			rw->_debounce = false;
+	if (event == FL_KEYUP) {
+		rw->_debounce = false;
+	}
+	else if ((event == FL_KEYDOWN || event == FL_SHORTCUT) && !rw->_debounce) {
+		if (Fl::test_shortcut(FL_COMMAND + 'c')) {
+			Roof_Window::copy_tile_cb(NULL, rw);
 		}
-	}
-	else if (Fl::test_shortcut(FL_COMMAND + 'c')) {
-		Roof_Window::copy_tile_cb(NULL, rw);
-	}
-	else if (Fl::test_shortcut(FL_COMMAND + 'v')) {
-		Roof_Window::paste_tile_cb(NULL, rw);
-	}
-	else if (Fl::test_shortcut(FL_COMMAND + 'x')) {
-		Roof_Window::swap_tiles_cb(NULL, rw);
-		rw->_debounce = true;
+		else if (Fl::test_shortcut(FL_COMMAND + 'v')) {
+			Roof_Window::paste_tile_cb(NULL, rw);
+		}
+		else if (Fl::test_shortcut(FL_COMMAND + 'x')) {
+			Roof_Window::swap_tiles_cb(NULL, rw);
+			rw->_debounce = true;
+		}
 	}
 	return Fl_Double_Window::handle(event);
 }

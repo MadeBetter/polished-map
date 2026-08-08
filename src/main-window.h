@@ -115,7 +115,7 @@ private:
 	std::unordered_map<uint8_t, int> _metatile_hotkeys;
 	// Window size cache
 	int _wx, _wy, _ww, _wh;
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
 	// Window icons
 	Pixmap _icon_pixmap, _icon_mask;
 #endif

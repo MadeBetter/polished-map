@@ -14,12 +14,10 @@ Swatch_Window::Swatch_Window(int x, int y, int w, int h, const char *l) : Fl_Dou
 int Swatch_Window::handle(int event) {
 	Palette_Window *lw = (Palette_Window *)user_data();
 	// FIX: actual cut/copy/paste events interfere here somehow, but not in Tile_Window::handle
-	if (Fl::event_text()) {
-		if (lw->_debounce) {
-			if (Fl::event() == FL_KEYUP) {
-				lw->_debounce = false;
-			}
-		}
+	if (event == FL_KEYUP) {
+		lw->_debounce = false;
+	}
+	else if ((event == FL_KEYDOWN || event == FL_SHORTCUT) && !lw->_debounce) {
 		if (Fl::test_shortcut(FL_COMMAND + 'c')) {
 			Palette_Window::copy_color_cb(NULL, lw);
 		}

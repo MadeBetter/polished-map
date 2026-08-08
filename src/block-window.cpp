@@ -9,7 +9,7 @@ Block_Double_Window::Block_Double_Window(int x, int y, int w, int h, const char 
 
 int Block_Double_Window::handle(int event) {
 	Block_Window *bw = (Block_Window *)user_data();
-	if (Fl::event_alt() && !bw->_debounce) {
+	if ((event == FL_KEYDOWN || event == FL_SHORTCUT) && Fl::event_alt() && !bw->_debounce) {
 		for (int p = 0; p < NUM_PALETTES; p++) {
 			if (Fl::test_shortcut(FL_ALT + '1' + p)) {
 				bw->_palette->value(p);

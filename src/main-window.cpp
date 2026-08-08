@@ -33,8 +33,10 @@
 #include "resource.h"
 #else
 #include <unistd.h>
+#ifndef __APPLE__
 #include <X11/xpm.h>
 #include "app-icon.xpm"
+#endif
 #endif
 
 Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_Window(x, y, w, h, PROGRAM_NAME),
@@ -230,7 +232,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	// Configure window icon
 #ifdef _WIN32
 	icon((const void *)LoadIcon(fl_display, MAKEINTRESOURCE(IDI_ICON1)));
-#else
+#elif !defined(__APPLE__)
 	fl_open_display();
 	XpmCreatePixmapFromData(fl_display, DefaultRootWindow(fl_display), (char **)&APP_ICON_XPM, &_icon_pixmap, &_icon_mask, NULL);
 	icon((const void *)_icon_pixmap);
@@ -756,7 +758,7 @@ void Main_Window::show() {
 	HANDLE small_icon = LoadImage(GetModuleHandle(0), MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON,
 		GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CXSMICON), 0);
 	SendMessage(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(small_icon));
-#else
+#elif !defined(__APPLE__)
 	// Fix for X11 icon alpha mask <https://www.mail-archive.com/fltk@easysw.com/msg02863.html>
 	XWMHints *hints = XGetWMHints(fl_display, fl_xid(this));
 	hints->flags |= IconMaskHint;
@@ -775,10 +777,12 @@ void Main_Window::apply_transparency() {
 		SetWindowLongPtr(hwnd, GWL_EXSTYLE, exstyle | WS_EX_LAYERED);
 	}
 	SetLayeredWindowAttributes(hwnd, 0, (BYTE)(alpha * 0xFF), LWA_ALPHA);
-#else
+#elif !defined(__APPLE__)
 	Atom atom = XInternAtom(fl_display, "_NET_WM_WINDOW_OPACITY", False);
 	uint32_t opacity = (uint32_t)(UINT32_MAX * alpha);
 	XChangeProperty(fl_display, fl_xid(this), atom, XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&opacity, 1);
+#else
+	(void)alpha;
 #endif
 }
 
@@ -1522,6 +1526,11 @@ void Main_Window::view_event_script(Event *e) {
 	}
 
 	ShellExecute(hwnd, L"edit", filename, NULL, NULL, SW_SHOW);
+#elif defined(__APPLE__)
+	if (fork() == 0) {
+		execl("/usr/bin/open", "open", _asm_file.c_str(), NULL);
+		exit(EXIT_SUCCESS);
+	}
 #else
 	if (fork() == 0) {
 		execl("/usr/bin/xdg-open", "xdg-open", _asm_file.c_str(), NULL);

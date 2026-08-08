@@ -24,23 +24,23 @@ int Tile_Window::handle(int event) {
 		Tileset_Window::paste_tile_graphics_cb(NULL, tw);
 		return 1;
 	}
-	if (tw->_debounce) {
-		if (Fl::event() == FL_KEYUP) {
-			tw->_debounce = false;
+	if (event == FL_KEYUP) {
+		tw->_debounce = false;
+	}
+	else if ((event == FL_KEYDOWN || event == FL_SHORTCUT) && !tw->_debounce) {
+		if (Fl::test_shortcut(FL_COMMAND + 'c')) {
+			Tileset_Window::copy_tile_cb(NULL, tw);
 		}
-	}
-	else if (Fl::test_shortcut(FL_COMMAND + 'c')) {
-		Tileset_Window::copy_tile_cb(NULL, tw);
-	}
-	else if (Fl::test_shortcut(FL_COMMAND + 'v')) {
-		Tileset_Window::paste_tile_cb(NULL, tw);
-	}
-	else if (Fl::test_shortcut(FL_COMMAND + 'x')) {
-		Tileset_Window::swap_tiles_cb(NULL, tw);
-		tw->_debounce = true;
-	}
-	else if (Fl::test_shortcut(FL_Delete)) {
-		Tileset_Window::delete_tile_cb(NULL, tw);
+		else if (Fl::test_shortcut(FL_COMMAND + 'v')) {
+			Tileset_Window::paste_tile_cb(NULL, tw);
+		}
+		else if (Fl::test_shortcut(FL_COMMAND + 'x')) {
+			Tileset_Window::swap_tiles_cb(NULL, tw);
+			tw->_debounce = true;
+		}
+		else if (Fl::test_shortcut(FL_Delete)) {
+			Tileset_Window::delete_tile_cb(NULL, tw);
+		}
 	}
 	return Fl_Double_Window::handle(event);
 }
