@@ -3,6 +3,7 @@ PREFIX = /usr/local
 
 polishedmap = polishedmap-plusplus
 polishedmapd = polishedmap-plusplusd
+macapp = Polished Map++.app
 
 CXX ?= g++
 LD = $(CXX)
@@ -13,11 +14,26 @@ resdir = res
 tmpdir = tmp
 debugdir = tmp/debug
 bindir = bin
+macosdir = macos
+
+macappdir = $(bindir)/$(macapp)
+maccontents = $(macappdir)/Contents
+macexecutable = $(maccontents)/MacOS/$(polishedmap)
+macresources = $(maccontents)/Resources
+macplist = $(macosdir)/Info.plist
+macicon = $(macosdir)/AppIcon.icns
 
 fltk-config = $(bindir)/fltk-config
 
 CXXFLAGS := -std=c++17 -I$(srcdir) -I$(resdir) $(shell $(fltk-config) --use-images --cxxflags) $(CXXFLAGS)
-LDFLAGS := $(shell $(fltk-config) --use-images --ldstaticflags) $(shell pkg-config --libs xpm) $(LDFLAGS)
+
+ifeq ($(shell uname -s),Darwin)
+XPM_LDFLAGS =
+else
+XPM_LDFLAGS = $(shell pkg-config --libs xpm)
+endif
+
+LDFLAGS := $(shell $(fltk-config) --use-images --ldstaticflags) $(XPM_LDFLAGS) $(LDFLAGS)
 
 RELEASEFLAGS = -DNDEBUG -O3 -flto
 DEBUGFLAGS = -DDEBUG -D_DEBUG -O0 -g -ggdb3 -Wall -Wextra -pedantic -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-parameter
@@ -30,7 +46,7 @@ TARGET = $(bindir)/$(polishedmap)
 DEBUGTARGET = $(bindir)/$(polishedmapd)
 DESKTOP = "$(DESTDIR)$(PREFIX)/share/applications/Polished Map++.desktop"
 
-.PHONY: all $(polishedmap) $(polishedmapd) release debug clean install uninstall
+.PHONY: all $(polishedmap) $(polishedmapd) release debug mac-app clean install uninstall
 
 .SUFFIXES: .o .cpp
 
@@ -45,13 +61,23 @@ release: $(TARGET)
 debug: CXXFLAGS := $(DEBUGFLAGS) $(CXXFLAGS)
 debug: $(DEBUGTARGET)
 
-$(TARGET): $(OBJECTS)
+$(TARGET): $(OBJECTS) Makefile
 	@mkdir -p $(@D)
-	$(LD) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
+	$(LD) -o $@ $(OBJECTS) $(CXXFLAGS) $(LDFLAGS)
 
-$(DEBUGTARGET): $(DEBUGOBJECTS)
+$(DEBUGTARGET): $(DEBUGOBJECTS) Makefile
 	@mkdir -p $(@D)
-	$(LD) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
+	$(LD) -o $@ $(DEBUGOBJECTS) $(CXXFLAGS) $(LDFLAGS)
+
+mac-app: release $(macplist) $(macicon)
+	$(RM) "$(macappdir)"
+	mkdir -p "$(maccontents)/MacOS" "$(macresources)"
+	cp "$(TARGET)" "$(macexecutable)"
+	cp "$(macplist)" "$(maccontents)/Info.plist"
+	cp "$(macicon)" "$(macresources)/AppIcon.icns"
+	chmod 755 "$(macexecutable)"
+	printf 'APPL????' > "$(maccontents)/PkgInfo"
+	codesign --force --deep --sign - "$(macappdir)"
 
 $(tmpdir)/%.o: $(srcdir)/%.cpp $(COMMON)
 	@mkdir -p $(@D)
@@ -62,7 +88,7 @@ $(debugdir)/%.o: $(srcdir)/%.cpp $(COMMON)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 clean:
-	$(RM) $(TARGET) $(DEBUGTARGET) $(OBJECTS) $(DEBUGOBJECTS)
+	$(RM) $(TARGET) $(DEBUGTARGET) "$(macappdir)" $(OBJECTS) $(DEBUGOBJECTS)
 
 install: release
 	mkdir -p "$(DESTDIR)$(PREFIX)/bin"

@@ -1,5 +1,44 @@
 # Install Guide
 
+## macOS
+
+### Build a native application bundle
+
+You need the Xcode Command Line Tools, CMake 3.15 or later, and FLTK 1.4.5.
+On Apple Silicon Macs, install the build tools with Homebrew:
+
+```bash
+brew install cmake pkgconf
+```
+
+From the Polished Map++ repository, build and install FLTK locally:
+
+```bash
+git clone --branch release-1.4.5 --depth 1 https://github.com/fltk/fltk.git lib/fltk
+cmake -S lib/fltk -B lib/fltk/build \
+	-D CMAKE_INSTALL_PREFIX="$PWD" \
+	-D CMAKE_BUILD_TYPE=Release \
+	-D FLTK_ABI_VERSION=10405 \
+	-D FLTK_BUILD_GL=OFF \
+	-D FLTK_BUILD_TEST=OFF \
+	-D FLTK_USE_SYSTEM_LIBPNG=OFF \
+	-D FLTK_USE_SYSTEM_ZLIB=OFF
+cmake --build lib/fltk/build --parallel
+cmake --install lib/fltk/build
+```
+
+Build and ad-hoc sign the native app:
+
+```bash
+make CXX=clang++ mac-app
+open "bin/Polished Map++.app"
+```
+
+The resulting `bin/Polished Map++.app` can be copied to `/Applications`.
+It uses FLTK's native Cocoa backend and registers `.ablk` and `.blk` map files
+with Launch Services. The ad-hoc signature is intended for local use; public
+distribution requires an Apple Developer ID signature and notarization.
+
 ## Windows
 
 ### Install the Polished Map++ release
