@@ -1339,12 +1339,24 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 	load_palettes(buffer);
 
 	// load special palettes if applicable and they exist
+	bool map_palette = false;
 	if (auto_load_special_palettes()) {
 		Config::special_pal_path(buffer, directory, filename, _map.landmark().c_str(), tileset_name);
 		if (file_exists(buffer)) {
 			load_palettes(buffer);
+			char local_pal[FL_PATH_MAX] = {};
+			if (filename) {
+				strcpy(local_pal, filename); fl_filename_setext(local_pal, FL_PATH_MAX, ".pal");
+				map_palette = !strcmp(local_pal, buffer);
+			}
 		}
 	}
+	// Static regional palette previews use the same source table as the game.
+	char event_script[FL_PATH_MAX] = {};
+	if (filename && auto_load_special_palettes()) {
+		strcpy(event_script, filename); fl_filename_setext(event_script, FL_PATH_MAX, ".asm");
+	}
+	_metatileset.read_palette_swaps(directory, event_script);
 
 	// use palettes coresponding to palette
 	Palettes new_palettes = palettes();
@@ -1374,7 +1386,8 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 	}
 
 	// load roof colors if applicable
-	if (auto_load_roof_colors() && _map.group() && _map.is_outside()) {
+	// An explicit per-map palette owns its roof slot; do not overwrite it.
+	if (!map_palette && auto_load_roof_colors() && _map.group() && _map.is_outside()) {
 		load_roof_colors(true);
 	}
 
@@ -1476,6 +1489,7 @@ void Main_Window::load_events(const char *filename) {
 	}
 
 	_asm_file = filename;
+	if (auto_load_special_palettes()) { _metatileset.read_palette_swaps(_directory.c_str(), filename); }
 }
 
 void Main_Window::unload_events() {

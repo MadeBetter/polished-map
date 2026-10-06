@@ -38,11 +38,11 @@ static void draw_selection_border(int x, int y, int rs, bool zoom) {
 	}
 }
 
-static void draw_map_button(Fl_Widget *wgt, uint8_t id, bool border) {
+static void draw_map_button(Fl_Widget *wgt, uint8_t id, bool border, int col = -1, int row = -1) {
 	Main_Window *mw = (Main_Window *)wgt->user_data();
 	int x = wgt->x(), y = wgt->y();
 	int ms = mw->metatile_size();
-	mw->draw_metatile(x, y, id);
+	mw->draw_metatile(x, y, id, col, row);
 	if (mw->grid()) {
 		fl_color(FL_INACTIVE_COLOR);
 		fl_xyline(x, y+ms-1, x+ms-1, y);
@@ -142,7 +142,7 @@ void Block::update_label() {
 void Block::draw() {
 	Main_Window *mw = (Main_Window *)user_data();
 	bool below_mouse = Fl::belowmouse() == this, event_cursor = mw->mode() == Mode::EVENTS;
-	draw_map_button(this, _id, below_mouse && !event_cursor);
+	draw_map_button(this, _id, below_mouse && !event_cursor, _col, _row);
 	if (!below_mouse || !event_cursor) { return; }
 	int hx = x() + right_half() * w() / 2, hy = y() + bottom_half() * h() / 2;
 	int hs = mw->metatile_size() / 2;
@@ -152,7 +152,7 @@ void Block::draw() {
 void Block::print() {
 	Main_Window *mw = (Main_Window *)user_data();
 	int X = (int)_col * METATILE_PX_SIZE, Y = (int)_row * METATILE_PX_SIZE;
-	mw->print_metatile(X, Y, _id);
+	mw->print_metatile(X, Y, _id, _col, _row);
 	if (Config::print_grid()) {
 		fl_color(FL_INACTIVE_COLOR);
 		fl_xyline(X, Y+METATILE_PX_SIZE-1, X+METATILE_PX_SIZE-1, Y);

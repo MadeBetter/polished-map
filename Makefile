@@ -61,6 +61,11 @@ release: $(TARGET)
 debug: CXXFLAGS := $(DEBUGFLAGS) $(CXXFLAGS)
 debug: $(DEBUGTARGET)
 
+.PHONY: test-palette-preview
+test-palette-preview: release
+	$(CXX) $(CXXFLAGS) -UNDEBUG -o $(tmpdir)/test-palette-preview tests/palette-preview.cpp $(filter-out $(tmpdir)/main.o,$(OBJECTS)) $(LDFLAGS)
+	$(tmpdir)/test-palette-preview "$(GAME_ROOT)" /private/tmp/violet-editor-preview.ppm
+
 $(TARGET): $(OBJECTS) Makefile
 	@mkdir -p $(@D)
 	$(LD) -o $@ $(OBJECTS) $(CXXFLAGS) $(LDFLAGS)

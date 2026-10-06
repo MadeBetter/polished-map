@@ -159,8 +159,8 @@ public:
 	const char *modified_filename(void);
 	void draw_overlay(void);
 	int handle(int event);
-	inline void draw_metatile(int x, int y, uint8_t id) const { _metatileset.draw_metatile(x, y, id, zoom(), show_priority()); }
-	inline void print_metatile(int x, int y, uint8_t id) const { _metatileset.draw_metatile(x, y, id, false, Config::print_priority()); }
+	inline void draw_metatile(int x, int y, uint8_t id, int col = -1, int row = -1) const { _metatileset.draw_metatile(x, y, id, zoom(), show_priority(), col, row); }
+	inline void print_metatile(int x, int y, uint8_t id, int col = -1, int row = -1) const { _metatileset.draw_metatile(x, y, id, false, Config::print_priority(), col, row); }
 	void update_status(Block *b);
 	inline void update_status(Event *e) { update_status(_map.block_under(e)); }
 	void update_event_cursor(Block *b);

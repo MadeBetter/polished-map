@@ -10,6 +10,25 @@ Follow the steps in [INSTALL.md](INSTALL.md) to install the release copy of Poli
 
 The [example/](example/) directory contains a minimal pokecrystal project with two test maps. **Kanto.180x135.kanto.ablk** is a stitch of every Kanto overworld map (they all use the `kanto` tileset). **Johto.235x135.johto.ablk** is a stitch of every Johto overworld map; Goldenrod and Azalea use the `johto_modern` tileset, so try switching tilesets with **Edit→Change Tileset…** or by pressing Ctrl+H.
 
+### Polished Crystal palette previews
+
+With **Auto-Load Special Palettes** enabled, `maps/MapName.pal` takes precedence
+over generic roof colors. Use the editor's eight-palettes-per-time format rather
+than the game's seven-palette time/weather tables. Morning, Day and Night previews
+also read the map's static `usepaletteswap`/`paletteswap` table, resolving its palette
+symbols through `data/tileset_palettes.asm`. Map tiles and map exports show each
+region's colors; the block sidebar keeps the base palette. Custom palettes remain
+manual. This is a static full-map preview, not an emulation of camera movement,
+palette fades, weather, or arbitrary script execution. No map or tile attributes
+are changed. Roof tables with a `morn/day, nite, eve` header use their actual
+three-pair stride rather than the older two-pair layout.
+
+To test this against the ported Violet City project:
+
+```sh
+make test-palette-preview GAME_ROOT=/path/to/polished-crystal
+```
+
 Browse the menu items, toolbar buttons, and Help dialog to learn how to use Polished Map++. And don't miss the mouse controls:
 
 |                          | Blocks Mode   | Events Mode      | Edit Block          | Edit Tileset |

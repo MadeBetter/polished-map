@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <fstream>
 #include <sstream>
+#include <regex>
 
 #pragma warning(push, 0)
 #include <FL/Fl_PNG_Image.H>
@@ -55,6 +56,7 @@ Metatileset::~Metatileset() {
 
 void Metatileset::clear() {
 	_tileset.clear();
+	_palette_swaps.clear();
 	for (Metatile *mt : _metatiles) {
 		mt->clear();
 	}
@@ -92,7 +94,69 @@ void Metatileset::trim_tileset() {
 	}
 }
 
-void Metatileset::draw_metatile(int x, int y, uint8_t id, bool zoom, bool show_priority) const {
+void Metatileset::read_palette_swaps(const char *root, const char *script) {
+	_palette_swaps.clear();
+	// Preview the existing static queue table; do not execute map scripts.
+	std::ifstream input(script);
+	std::string line, label;
+	std::regex use(R"(^\s*usepaletteswap\s+([\w.]+)\s*$)");
+	std::regex entry(R"(^\s*paletteswap\s+(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*PAL_BG_(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*$)");
+	std::smatch match;
+	while (std::getline(input, line)) {
+		line = line.substr(0, line.find(';'));
+		if (std::regex_match(line, match, use)) { label = match[1]; break; }
+	}
+	if (label.empty()) { return; }
+	bool active = false;
+	const std::string slots[] = {"GRAY", "RED", "GREEN", "WATER", "YELLOW", "BROWN", "ROOF", "TEXT"};
+	auto load = [root](const std::string &symbol) -> PalVec {
+		if (symbol == "NULL") { return {}; }
+		std::ifstream definitions(std::string(root) + "data/tileset_palettes.asm");
+		std::string row;
+		bool found = false;
+		std::regex include("^\\s*INCLUDE\\s+\"([^\"]+)\"");
+		std::smatch file;
+		while (std::getline(definitions, row)) {
+			row = row.substr(0, row.find(';')); trim(row);
+			if (row.compare(0, symbol.size() + 1, symbol + ":") == 0) { found = true; continue; }
+			if (!found) { continue; }
+			if (std::regex_search(row, file, include)) {
+				return Color::parse_palettes((std::string(root) + file[1].str()).c_str());
+			}
+			if (row.find(':') != std::string::npos) { break; }
+		}
+		return {};
+	};
+	while (std::getline(input, line)) {
+		line = line.substr(0, line.find(';')); trim(line);
+		if (!active) { active = line == label + ":"; continue; }
+		if (line == "db -1" || line.find(':') != std::string::npos) { break; }
+		if (!std::regex_match(line, match, entry)) { continue; }
+		int slot = 0;
+		while (slot < NUM_PALETTES && slots[slot] != match[5]) { slot++; }
+		if (slot == NUM_PALETTES) { continue; }
+		Palette_Swap swap{std::stoi(match[1]), std::stoi(match[2]), std::stoi(match[3]), std::stoi(match[4]),
+			(Palette)slot, load(match[6]), load(match[7])};
+		if (swap.x1 > swap.x2 || swap.y1 > swap.y2 || swap.x2 > 255 || swap.y2 > 255) { continue; }
+		if ((match[6] != "NULL" && swap.outside.size() < 3) || (match[7] != "NULL" && swap.inside.size() < 3)) { continue; }
+		_palette_swaps.push_back(std::move(swap));
+	}
+}
+
+const HueArray *Metatileset::preview_palette(Palette palette, int x, int y) const {
+	Palettes time = _tileset.palettes();
+	if (x < 0 || y < 0 || time > Palettes::NITE) { return NULL; }
+	const HueArray *result = NULL;
+	for (const auto &swap : _palette_swaps) {
+		if (swap.palette != palette) { continue; }
+		bool inside = x >= swap.x1 && x < swap.x2 && y >= swap.y1 && y < swap.y2;
+		const PalVec &colors = inside ? swap.inside : swap.outside;
+		if (colors.size() >= 3) { result = &colors[(size_t)time]; }
+	}
+	return result;
+}
+
+void Metatileset::draw_metatile(int x, int y, uint8_t id, bool zoom, bool show_priority, int map_col, int map_row) const {
 	int s = TILE_SIZE * (zoom ? ZOOM_FACTOR : 1);
 	if (id >= size()) {
 		fl_color(EMPTY_RGB);
@@ -110,6 +174,18 @@ void Metatileset::draw_metatile(int x, int y, uint8_t id, bool zoom, bool show_p
 			const Tile *t = mt->tile(tx, ty);
 			const Deep_Tile *dt = _tileset.const_tile_or_roof(t->index());
 			const uchar *buffer = dt->rgb(t->palette());
+			uchar regional[TILE_BYTES];
+			const HueArray *colors = preview_palette(t->palette(), map_col < 0 ? -1 : map_col * 2 + tx / 2,
+				map_row < 0 ? -1 : map_row * 2 + ty / 2);
+			if (colors && !dt->undefined()) {
+				for (int py = 0; py < LINE_PX; py++) {
+					for (int px = 0; px < LINE_PX; px++) {
+						const auto &rgb = (*colors)[(size_t)dt->hue(px / ZOOM_FACTOR, py / ZOOM_FACTOR)];
+						for (int c = 0; c < NUM_CHANNELS; c++) { regional[(py * LINE_PX + px) * NUM_CHANNELS + c] = RGB5C(rgb[c]); }
+					}
+				}
+				buffer = regional;
+			}
 			buffer += t->y_flip()
 				? t->x_flip() ? (LINE_PX * LINE_PX - k) * NUM_CHANNELS : LINE_BYTES * (LINE_PX - 1)
 				: t->x_flip() ? (LINE_PX - 1) * k * NUM_CHANNELS : 0;
@@ -135,12 +211,19 @@ uchar *Metatileset::print_rgb(const Map &map) const {
 				for (int tx = 0; tx < METATILE_SIZE; tx++) {
 					const Tile *t = mt->tile(tx, ty);
 					const Deep_Tile *dt = _tileset.const_tile_or_roof(t->index());
+					const HueArray *colors = preview_palette(t->palette(), x * 2 + tx / 2, y * 2 + ty / 2);
 					size_t o = ((y * METATILE_SIZE + ty) * bw + x * METATILE_SIZE + tx) * TILE_SIZE * NUM_CHANNELS;
 					for (int py = 0; py < TILE_SIZE; py++) {
 						int my = t->y_flip() ? TILE_SIZE - py - 1 : py;
 						for (int px = 0; px < TILE_SIZE; px++) {
 							int mx = t->x_flip() ? TILE_SIZE - px - 1 : px;
 							const uchar *rgb = dt->const_colored_pixel(t->palette(), mx, my);
+							uchar regional[NUM_CHANNELS];
+							if (colors && !dt->undefined()) {
+								const auto &color = (*colors)[(size_t)dt->hue(mx, my)];
+								for (int c = 0; c < NUM_CHANNELS; c++) { regional[c] = RGB5C(color[c]); }
+								rgb = regional;
+							}
 							size_t j = o + (py * bw + px) * NUM_CHANNELS;
 							buffer[j++] = rgb[0];
 							buffer[j++] = rgb[1];

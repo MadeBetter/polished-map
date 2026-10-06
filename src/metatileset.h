@@ -19,6 +19,12 @@ private:
 	Result _result;
 	bool _modified, _bin_collisions;
 	int64_t _mod_time, _mod_time_attr, _mod_time_coll;
+	struct Palette_Swap {
+		int x1, x2, y1, y2;
+		Palette palette;
+		PalVec outside, inside;
+	};
+	std::vector<Palette_Swap> _palette_swaps;
 public:
 	Metatileset();
 	~Metatileset();
@@ -38,7 +44,9 @@ public:
 	bool uses_tile(int idx) const;
 	void trim_tileset(void);
 	void clear(void);
-	void draw_metatile(int x, int y, uint8_t id, bool zoom, bool show_priority) const;
+	void draw_metatile(int x, int y, uint8_t id, bool zoom, bool show_priority, int map_col = -1, int map_row = -1) const;
+	void read_palette_swaps(const char *root, const char *script);
+	const HueArray *preview_palette(Palette palette, int x, int y) const;
 	uchar *print_rgb(const Map &map) const;
 	Result read_metatiles(const char *f);
 	bool write_metatiles(const char *f);
