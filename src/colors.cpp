@@ -290,6 +290,15 @@ Palettes Color::read_palettes(const char *f, Palettes pals) {
 
 bool Color::read_roof_colors(const char *f, uint8_t map_group, Roof_Palettes roof_palettes) {
 	PalVec roof_colors = parse_palettes(f);
+	// Polished Crystal adds evening pairs and shares the first pair between
+	// morning and day. Do not index that table as the older two-pair layout.
+	std::ifstream header(f);
+	std::string line;
+	bool evening_table = false;
+	while (std::getline(header, line)) {
+		if (line.find("morn/day") != std::string::npos && line.find("eve") != std::string::npos) { evening_table = true; break; }
+		if (line.find("RGB ") != std::string::npos) { break; }
+	}
 	int num_palettes = 0;
 	Palettes palettes[4] = {};
 	switch (roof_palettes) {
@@ -326,6 +335,23 @@ bool Color::read_roof_colors(const char *f, uint8_t map_group, Roof_Palettes roo
 	// Each HueArray in a PalVec contains 4 RGB hues
 	int ps[8] = {}, hs[8] = {};
 	int ci = (int)map_group * num_palettes * 2;
+	if (evening_table) {
+		int base = (int)map_group * 6;
+		if (roof_colors.size() * NUM_HUES < (size_t)base + 6) { return false; }
+		for (int k = 0; k < num_palettes; k++) {
+			int offset = palettes[k] == Palettes::NITE ? 2 : palettes[k] == Palettes::CUSTOM ? 4 : 0;
+			for (int h = 0; h < 2; h++) {
+				int index = base + offset + h;
+				color(palettes[k], Palette::ROOF, h ? Hue::DARK : Hue::LIGHT,
+					roof_colors[index / NUM_HUES][(int)ordered_hue(index % NUM_HUES)]);
+			}
+		}
+		if (roof_palettes == Roof_Palettes::ROOF_DAY_NITE || roof_palettes == Roof_Palettes::ROOF_DAY_NITE_CUSTOM) {
+			color(Palettes::MORN, Palette::ROOF, Hue::LIGHT, fl_color(Palettes::DAY, Palette::ROOF, Hue::LIGHT));
+			color(Palettes::MORN, Palette::ROOF, Hue::DARK, fl_color(Palettes::DAY, Palette::ROOF, Hue::DARK));
+		}
+		return true;
+	}
 	ps[0] = ci / NUM_HUES;
 	hs[0] = ci % NUM_HUES;
 	for (int i = 1; i < num_palettes * 2; i++) {
